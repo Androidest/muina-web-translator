@@ -1,10 +1,11 @@
-![p](`/public/icons/icon_48.png`)
 
 # Muina Web Translator - By Stephen
 
 My Chrome Extension, developed for my sister.
 
 This project is for my personal use.
+
+![a](/public/icons/icon_128.png)
 
 # Guide
 
