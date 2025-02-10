@@ -1,0 +1,47 @@
+<div id="anchor" style="
+    width: 0;
+    height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 100;
+">
+    <div id="popup-window" style="
+        position: fixed;
+        width: auto;
+        height: auto;
+        padding: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: row;
+        text-align: center;
+        background-color: rgba(255, 255, 255, 0.737);
+        border: 0;
+        opacity: 0; /* 初始透明度为0，隐藏弹窗 */
+        border-radius: 5px;
+        box-shadow: 0 0 20px #81c1ba;
+        z-index: 100;
+        transform: translateY(3000px) ; /* 初始位置在屏幕下方 */
+        transition:  opacity 1s, transform 0.2s ease; /* 添加过渡效果 */
+    ">
+        <img id="icon" style="
+            width: 50px;
+            height: 50px;
+            border-radius: 15px;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.6);
+            margin-right: 17px;
+            padding: 0;
+        ">
+        <span id="message" style="
+            font-size: 25px;
+            font-weight: 600;
+            color: #81c1ba;;
+        ">
+        </span>
+    </div>
+</div>

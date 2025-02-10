@@ -1,0 +1,47 @@
+<div id="anchor" style="
+    width: 100%;
+    height: fit-content;
+    background: rgb(77 71 71 / 81%);
+    border: 0;
+    border-radius: 5px;
+    margin: 10px 0px 6px 0;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.6);
+    padding: 3px;
+">
+    <div id="image-container" style="
+        width: 0;
+        height: 0;
+        right: 40px;
+        top: -2px;
+        position: relative;
+    ">
+        <img id="icon" style="
+            width: 36px;
+            height: 36px;
+            border-radius: 15px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.8);
+            margin: 0;
+            padding: 0;
+        ">
+    </div>
+
+    <button id="trans-1" style="
+        font-size: 15px;
+        font-weight: 100;
+        color: #35ffda;
+        padding: 5px 5px 5px 10px;
+        background-color: rgba(69, 64, 64, 0.81);
+        border-radius: 5px;
+        border: 0;
+        width: 100%;
+        text-align: left;
+        transition: background-color 0.3s ease, color 0.3s ease; /* 添加过渡效果 */
+        "
+        onmouseover="this.style.backgroundColor='rgba(50, 46, 46, 0.81)'; this.style.color='#29ccb3';"
+        onmouseout="this.style.backgroundColor='rgba(69, 64, 64, 0.81)'; this.style.color='#35ffda';"
+        onfocus="this.style.outline='none'; this.style.boxShadow='0 0 5px rgba(53, 255, 218, 0.5)';"
+        onblur="this.style.boxShadow='none';"
+    >
+        <!-- 翻译内容 -->
+    </button>
+</div>

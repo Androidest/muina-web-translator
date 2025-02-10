@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<title>My Chrome Extension</title>
+	<link rel="stylesheet" href="popup.css" />
+</head>
+
+<body>
+	<div class="app">
+		<p class="title">妹na翻译器</p>
+
+		<div class="button-container">
+			<button id="getAllCaptionBtn" class="button">复制字幕</button>
+			<button id="getAllCaptionBtn_format" class="button">复制字幕（AI格式化）</button>
+			<button id="translateCaptionBtn" class="button">翻译字幕</button>
+			<button id="recoverLastTranslationBtn" class="button">恢复上次翻译</button>
+		</div>
+
+		<p class="subtitle1">API钥匙🔑:</p>
+		<input id="api-key" class="prompt" placeholder="填入API钥匙🔑"> </input>
+
+		<p class="subtitle1">提示词:</p>
+		<input id="prompt" class="prompt" placeholder="填入前置的AI提示词"> </input>
+
+		<div id="term-block" class="block">
+			<p class="subtitle1">术语:</p>
+			<div class="term-container">
+				<ul id="term-list"></ul>
+			</div>
+		</div>
+
+		<div id="caption-block" class="block">
+			<p class="subtitle1">字幕:</p>
+			<div class="caption-container">
+				<ul id="caption-list"></ul>
+			</div>
+		</div>
+
+		<hr class="divider" />
+		<p class="subtitle">
+			<author>By Stephen</author>
+		</p>
+	</div>
+
+	<script src="popup.js"></script>
+</body>
+
+</html>
