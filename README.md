@@ -1,4 +1,3 @@
-
 # Muina Web Translator - By Stephen
 
 My Chrome Extension, developed for my sister.
@@ -20,3 +19,11 @@ CTRL+SHIFT+P -> Chrome Extension: Create New  # create a new extension project
 2. Make changes
 3. Reload the extension form the chrome extension manager
 4. Reload the target web page
+
+# Preview
+
+![preview](/public/icons/1-preview.png)
+
+![preview](/public/icons/2-result.png)
+
+![preview](/public/icons/3-result.png)
