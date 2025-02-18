@@ -5,7 +5,7 @@ import {apiRequest, registerApi, storage} from './utils.js';
 
 // ======================== 初始化 ========================
 const openai = new OpenAI({
-    baseURL: 'https://api.deepseek.com',
+    baseURL: 'https://api.moonshot.cn/v1',
     apiKey: ''
 });
 
@@ -13,76 +13,160 @@ registerApi({
 	bg_translateCaption: bg_translateCaption
 });
 
-const instructions = 
-`要求：中文字幕译成南美西班牙语。翻译时要保留跟原文一样的行数。为保持行号对应要强行拆分译文，以解决说话停顿问题。
-输出格式：只输出一个一维数组。输出不要带上原文，但译文要带上行号，如：["1.xxx", "2.xxx"]。`
-
-const termsIntructions = `
-指定翻译术语：{0}
-请开始翻译：
-` // 术语：维达=Vinda,沈氏=Grupo Sánchez,沈氏集团=Grupo Sánchez,顾柔=Valeria González
-
+const sys_instructions = 
+`你是专业的字幕翻译工具，把输入的中文字幕译成南美西班牙语字幕。要求输出格式和输入一致。不要把多条字幕翻译成一条，严格保证输出的字幕条数跟输入一样。`
+// 术语：维达=Vinda,沈氏=Grupo Sánchez,沈氏集团=Grupo Sánchez,顾柔=Valeria González
+const terms_intructions = `指定替换的术语：{0}` 
+const history_intructions = `前文：{0}` 
+const caption_intructions = `输入：{0}` 
 
 // ======================== 后台api ========================
 async function bg_translateCaption(request, sender, sendResponse) {
     apiRequest('tab_showNotification', { message: "翻译中...", notAutoClose: true});
-    const { apiKey, captions, terms } = request;
-    openai.apiKey = apiKey;
+    const group_size = 50
+    let { apiKey, captions, terms, startIndex } = request;
 
-    let devMessage = instructions
-    let message = ""
+    if (!startIndex)
+        startIndex = 0
+
+    openai.apiKey = apiKey;
+    let messages = [{ role: "system", content: sys_instructions }]
 
     if (terms && Object.keys(terms).length > 0) {
+        // 如果有术语，添加到消息中
     	let terms_str = ""
         for (let key of Object.keys(terms)) {
-            terms_str += `${key}=${terms[key]},`
+            terms_str += `${key}=${terms[key]}；`
         }
-        message += termsIntructions.replace('{0}', terms_str);
+        messages.push({ 
+            role: "user", 
+            content: terms_intructions.replace("{0}", terms_str) 
+        })
     }
-
-    for (let i = 0; i < captions.length; i++)
-        message += `${i+1}.${captions[i]}\n`
-
-    console.log("开始翻译\n", `devMessage=${devMessage}\nmessage=${message}`)
+    
     // ======================== 开始翻译 ========================
-    let translation = null
+    let translation_json = null
     let usage = null
 
     if (isTesting) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        translation = testTramslation
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        translation_json = testTramslation
         usage = testUsage
     }
     else {
-        // 调用OpenAI API进行翻译
-        try  {
-            const completion = await openai.chat.completions.create({
-                messages: [
-                    { role: "system", content: instructions },
-                    { role: "user", content: message }
-                ],
-                model: "deepseek-reasoner", // "deepseek-chat",deepseek-reasoner
-                temperature: 1.3 // 翻译 1.3 比较好
-            });
-            translation = completion.choices[0].message.content;
-            usage = completion.usage
+        let formatted_captions = []
+        for (let i = 0; i < captions.length; i++) {
+            let cap = `${i+1}.${captions[i]}`
+            formatted_captions.push(cap)
         }
-        catch (e) {
-            console.error("OpenAI API错误:", e);
-            apiRequest('tab_showNotification', { message: "OpenAI API错误:" + e });
-            sendResponse({translation: null});
-            return;
+        
+        let last_group = null
+        let translated_captions = []
+
+        if (startIndex > 0) {
+        	last_group = formatted_captions.slice(0, startIndex)
         }
+
+        // 把字幕分成组发送，太长影响翻译准确度
+        for (let i = startIndex; i < formatted_captions.length; i+=group_size) {
+
+            // 只保留system和terms的消息
+            messages = messages.slice(0, 2)
+            
+            // 把最后一组的最后5条字幕作为前置上下文，避免翻译出现连贯性问题
+            if (last_group) {
+                const last_five = last_group.slice(-5) // 取最后5条字幕
+                messages.push({
+                    role: "user",
+                    content: history_intructions.replace("{0}", JSON.stringify(last_five)) 
+                })
+            }
+
+            // 添加当前组的字幕，作为最后的用户输入
+            let group = formatted_captions.slice(i, i+group_size)
+            messages.push({ 
+                role: "user", 
+                content: caption_intructions.replace("{0}", JSON.stringify(group)) 
+            })
+            messages.push({
+            	role: "assistant", 
+                content: "[", 
+                partial: true
+            })
+            last_group = group
+
+            try  {
+                // 调用OpenAI API进行翻译
+                const req = {
+                    messages,
+                    model: "moonshot-v1-8k", // moonshot-v1-8k, kimi-latest-8k, deepseek-chat, deepseek-reasoner
+                    temperature: 0.1 
+                }
+                console.log(`开始一轮翻译\n`, `messages=${JSON.stringify(req)}`)
+                const completion = await openai.chat.completions.create(req);
+                console.log("完成一轮翻译\n", JSON.stringify(completion))
+
+                // 合并组的翻译结果
+                translated_captions = translated_captions.concat(JSON.parse("[" + completion.choices[0].message.content));
+
+                // 合并组的使用量
+                if (!usage) {
+                    usage = completion.usage
+                }
+                else {
+                    usage.prompt_tokens += completion.usage.prompt_tokens
+                    usage.completion_tokens += completion.usage.completion_tokens
+                    usage.total_tokens += completion.usage.total_tokens
+                }
+
+                // 每轮翻译间隔1秒
+                await new Promise(resolve => setTimeout(resolve, 1000)); 
+            }
+            catch (e) {
+                console.error("OpenAI API错误:", e);
+                apiRequest('tab_showNotification', { message: "OpenAI API错误:" + e });
+                sendResponse({translation: null});
+                return;
+            }
+        }
+
+        translated_captions = captionsToLowerCase(terms, translated_captions);
+        await saveLastTranslation(startIndex, translated_captions);
+        translation_json = JSON.stringify(translated_captions);
     }
     // ======================== 处理结果 ========================
-    console.log("完成翻译\n", usage, translation)
-    
-    if (translation) {
-        storage.set(storage.last_translation, translation);
-        console.log("保存翻译到storage")
+    console.log("完成翻译\n", usage, translation_json)
+    // 保存翻译到storage
+
+    apiRequest('tab_showTranslation', { translation: translation_json, usage, startIndex });
+    sendResponse({translation: translation_json});
+}
+
+async function saveLastTranslation(startIndex, translated_captions) {
+    let new_translation = translated_captions;
+    if (startIndex > 0) {
+        // 从storage中获取上次的翻译
+        const last_json = await storage.get(storage.last_translation);
+        if (last_json) {
+            // 合并上次的翻译和本次的翻译
+            const last_translation = JSON.parse(last_json);
+            new_translation = last_translation.slice(0, startIndex).concat(translated_captions);
+        }
     }
-    apiRequest('tab_showTranslation', { translation, usage });
-    sendResponse({translation});
+    storage.set(storage.last_translation, JSON.stringify(new_translation));
+    console.log("保存翻译到storage");
+}
+
+function captionsToLowerCase(terms, translated_captions) {
+    const termStr = Object.values(terms).join(' ');
+    translated_captions = translated_captions.map(text => {
+        const first = text.replace(/^\d+\.\s*/, '').split(' ')[0];
+        if (!termStr.includes(first)) {
+            text = text.replace(first, first.toLowerCase());
+        }
+        return text;
+    });
+    return translated_captions;
 }
 
 const isTesting = false
@@ -90,5 +174,5 @@ const testTramslation = `["1.Te mataré", "Hermano mayor Chao", "3. Hermano Chao
 const testUsage = {
     "prompt_tokens": 267,
     "completion_tokens": 987,
-    "prompt_cache_hit_tokens": 220,
+    "total_tokens": 220,
 }

@@ -7,6 +7,7 @@
     margin: 10px 0px 6px 0;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.6);
     padding: 3px;
+    z-index: 99;
 ">
     <div id="image-container" style="
         width: 0;
@@ -22,7 +23,12 @@
             box-shadow: 0 0 15px rgba(0, 0, 0, 0.8);
             margin: 0;
             padding: 0;
-        ">
+            cursor: pointer;
+            transition: filter 0.3s ease;
+            "
+            onmouseover="this.style.filter='brightness(0.7)';" 
+            onmouseout="this.style.filter='brightness(1.0)';"
+        >
     </div>
 
     <button id="trans-1" style="

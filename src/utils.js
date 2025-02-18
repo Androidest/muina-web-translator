@@ -4,6 +4,7 @@ const storage = {
 	// 存储键
 	apiKey: 'api-key',
 	prompt: 'prompt',
+	last_trans_request: 'last_trans_request',
 	last_translation: 'last_translation',
 	// 方法
 	set: async (key, value) => {

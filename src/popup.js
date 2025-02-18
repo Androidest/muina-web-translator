@@ -137,7 +137,9 @@ async function onTranslateCaptionBtn() {
 
 	// （插件弹窗 -> 插件后台background）把字幕发给后台请求翻译
 	const { captions, terms } = tab_response;
-	await apiRequest('bg_translateCaption', { apiKey, captions, terms });
+	const req = { apiKey, captions, terms }
+	storage.set(storage.last_trans_request, req); // 保存请求, 用于从某条字幕开始重新翻译
+	await apiRequest('bg_translateCaption', req);
 
 	// 重置按钮
 	btn.disabled = false;

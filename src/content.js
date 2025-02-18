@@ -1,6 +1,6 @@
 //  contents that will be injected into the tab page
 'use strict';
-import {apiRequest, registerApi, mainIconUrl} from './utils.js';
+import {apiRequest, registerApi, mainIconUrl, storage} from './utils.js';
 
 // ============================ 初始化 ====================================
 registerApi({
@@ -46,14 +46,15 @@ async function tab_showTranslation(request, sender, sendResponse) {
 
 	let translations = [];
 	try {
-		translations = JSON.parse(request.translation);	
+		translations = JSON.parse(request.translation)
 	}
 	catch (e) {
 		tab_showNotification({ message: "错误:翻译格式错误!" });
 		return;	
 	}
 
-	const inputElements = document.querySelectorAll('textarea.OpenVideo-Target');
+	let inputElements = document.querySelectorAll('textarea.OpenVideo-Target');
+	inputElements = Array.from(inputElements).slice(request.startIndex);
 	let lineError = ""
 	if (inputElements.length !== translations.length) {
 		lineError = "错误:数量对不上!";
@@ -82,31 +83,21 @@ async function tab_showTranslation(request, sender, sendResponse) {
 
 		// 显示翻译
 		const trans1 = transContainer.querySelector('#trans-1');
-		if (Array.isArray(translation[0])) {
-			onLoadTranslationText(trans1, translation[0], inputElem);
-
-			for (let j = 1; j < translation.length; j++) {
-				// 创建新的翻译元素
-				const newTrans = trans1.cloneNode(true);
-				newTrans.id = 'trans-' + (j + 1);
-				trans1.parentElement.appendChild(newTrans);
-				onLoadTranslationText(newTrans, translation[j], inputElem);
-			}
-		}
-		else {
-			onLoadTranslationText(trans1, translation, inputElem);
-		}
+		onLoadTranslationText(trans1, translation, inputElem, i);
 	}
 
-	function onLoadTranslationText(transElem, text, inputElem) {
+	// 一条字幕翻译
+	function onLoadTranslationText(transElem, text, inputElem, i) {
 		transElem.innerHTML = text;
 		transElem.addEventListener('click', () => onClickTransBtn(text, inputElem));
-		transElem.parentElement.querySelector('#icon').src = mainIconUrl;
+		const icon = transElem.parentElement.querySelector('#icon')
+		icon.src = mainIconUrl; // 猫图标
+		icon.addEventListener('click', () => onClickTransIconBtn(i));
 	}
 	
 	const usage = request.usage;
 	if (usage)
-		tab_showNotification({ message: `翻译完毕! ${lineError} Tokens: 输入=${usage.prompt_tokens}, 输出=${usage.completion_tokens}, 击中缓存=${usage.prompt_cache_hit_tokens}` });
+		tab_showNotification({ message: `翻译完毕! ${lineError} Tokens: 输入=${usage.prompt_tokens}, 输出=${usage.completion_tokens}, 全部=${usage.total_tokens}` });
 	else
 		tab_showNotification({ message: `翻译完毕! ${lineError}` });
 }
@@ -150,6 +141,8 @@ async function tab_showNotification(request, sender, sendResponse) {
 }
 
 // ============================ tab上的按钮事件 =============================
+
+// 点击翻译后的字幕
 function onClickTransBtn(translation, inputElem) {
 	// 模拟用户点击输入框, 触发输入框的事件, 网页需要这个事件提前记录输入框原有的内容
 	for (const action of ['click', 'pause', 'focus']) {
@@ -167,10 +160,19 @@ function onClickTransBtn(translation, inputElem) {
 		inputElem.dispatchEvent(event);
 	}
 
-	tab_showNotification({ message: `替换成：${translation}`});
+	// tab_showNotification({ message: `替换成：${translation}`});
+}
+
+// 点击翻译字幕左侧的猫图标
+async function onClickTransIconBtn(i) {
+	const req = await storage.get(storage.last_trans_request)
+	const newReq = { ...req, startIndex: i }
+	console.log(`从第【${i+1}】行开始重新翻译`)
+	await apiRequest('bg_translateCaption', newReq);
+	console.log(`翻译完成`)
 }
 
 // =========================== 通用函数 =============================
 function formatTranslation(translation) {
-	return translation.replace(/^\d+\.\s*/, '');;
+	return translation.replace(/^\d+\.\s*/, '');
 }
