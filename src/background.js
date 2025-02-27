@@ -5,16 +5,17 @@ import {apiRequest, registerApi, storage} from './utils.js';
 
 // ======================== 初始化 ========================
 const openai = new OpenAI({
-    baseURL: 'https://api.moonshot.cn/v1',
+    baseURL: 'https://api.deepseek.com',
     apiKey: ''
 });
 
 registerApi({
-	bg_translateCaption: bg_translateCaption
+	bg_translateCaption: bg_translateCaption,
+    bg_getPromt : bg_getPromt
 });
 
 const sys_instructions = 
-`你是专业的字幕翻译工具，把输入的中文字幕译成南美西班牙语字幕。要求输出格式和输入一致。不要把多条字幕翻译成一条，严格保证输出的字幕条数跟输入一样。`
+`你是专业的字幕翻译工具，把输入的中文字幕翻译成拉丁美洲西班牙语字幕。要求输出格式和输入一致。不要把多条字幕翻译成一条，严格保证输出的字幕条数跟输入一样。不要输出任何解释，只输出翻译后的字幕。`
 // 术语：维达=Vinda,沈氏=Grupo Sánchez,沈氏集团=Grupo Sánchez,顾柔=Valeria González
 const terms_intructions = `指定替换的术语：{0}` 
 const history_intructions = `前文：{0}` 
@@ -91,7 +92,7 @@ async function bg_translateCaption(request, sender, sendResponse) {
             messages.push({
             	role: "assistant", 
                 content: "[", 
-                partial: true
+                prefix: true
             })
             last_group = group
 
@@ -99,8 +100,9 @@ async function bg_translateCaption(request, sender, sendResponse) {
                 // 调用OpenAI API进行翻译
                 const req = {
                     messages,
-                    model: "moonshot-v1-8k", // moonshot-v1-8k, kimi-latest-8k, deepseek-chat, deepseek-reasoner
-                    temperature: 0.1 
+                    model: "deepseek-chat", // moonshot-v1-8k, kimi-latest-8k, deepseek-chat, deepseek-reasoner
+                    temperature: 1.3, // 翻译 1.3 比较好
+                    stop: ["]"],
                 }
                 console.log(`开始一轮翻译\n`, `messages=${JSON.stringify(req)}`)
                 const completion = await openai.chat.completions.create(req);
@@ -142,6 +144,35 @@ async function bg_translateCaption(request, sender, sendResponse) {
     sendResponse({translation: translation_json});
 }
 
+async function bg_getPromt(request, sender, sendResponse) {
+    let { captions, terms } = request;
+
+    let prompt = sys_instructions + '\n'
+
+    // 如果有术语，添加到消息中
+    if (terms && Object.keys(terms).length > 0) {
+    	let terms_str = ""
+        for (let key of Object.keys(terms)) {
+            terms_str += `${key}=${terms[key]}；`
+        }
+        prompt += terms_intructions.replace("{0}", terms_str)  + '\n'
+    }
+    
+    // 添加字幕到消息中
+    if (captions && captions.length > 0) {
+    	let formatted_captions = []
+        for (let i = 0; i < captions.length; i++) {
+            let cap = `${i+1}.${captions[i]}`
+            formatted_captions.push(cap)
+        }
+        prompt += caption_intructions.replace("{0}", JSON.stringify(formatted_captions)) 
+    }
+    
+    sendResponse({prompt});
+    return false;
+}
+
+// ======================== 辅助函数 ========================
 async function saveLastTranslation(startIndex, translated_captions) {
     let new_translation = translated_captions;
     if (startIndex > 0) {

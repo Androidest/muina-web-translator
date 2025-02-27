@@ -41,12 +41,15 @@ async function tab_showTranslation(request, sender, sendResponse) {
 	if (!request || !request.translation){
 		return;
 	}
-	console.log(request.translation);
-	console.log(request.usage);
+
+	let { usage, translation, startIndex, slotId } = request;
+
+	if (!slotId) 
+		slotId = 0;
 
 	let translations = [];
 	try {
-		translations = JSON.parse(request.translation)
+		translations = JSON.parse(translation)
 	}
 	catch (e) {
 		tab_showNotification({ message: "错误:翻译格式错误!" });
@@ -54,48 +57,77 @@ async function tab_showTranslation(request, sender, sendResponse) {
 	}
 
 	let inputElements = document.querySelectorAll('textarea.OpenVideo-Target');
-	inputElements = Array.from(inputElements).slice(request.startIndex);
+	inputElements = Array.from(inputElements).slice(startIndex);
 	let lineError = ""
 	if (inputElements.length !== translations.length) {
 		lineError = "错误:数量对不上!";
 	}
 
 	// 显示翻译
-	const id = 'translation-container'
-	const response = await fetch(chrome.runtime.getURL('translation.html'));
+	const response = await fetch(chrome.runtime.getURL('translated-caption-slot.html'));
 	const html = await response.text();
 
 	const count = Math.min(inputElements.length, translations.length);
 	for (let i = 0; i < count; i++) {
+
 		const translation = translations[i];
 		const inputElem = inputElements[i];
 
-		// 移除旧的翻译
-		let transContainer = inputElem.parentElement.querySelector('#' + id)
-		if (transContainer)
-			inputElem.parentElement.removeChild(transContainer)
-		
-		// 将 翻译HTML 插入到页面中
-		transContainer = document.createElement('div');
-		inputElem.parentElement.appendChild(transContainer);
-		transContainer.id = id;
-		transContainer.innerHTML = html;
+		for (let sid = 0; sid < slotId + 1; sid++) {
+			const id = `translation-slot-${sid}`
+			// 如果当前slot是指定的slotId
+			if (sid == slotId) {
+				// 如果翻译容器不存在, 则创建一个新的翻译容器
+				let slot = inputElem.parentElement.querySelector(`#${id}`)
+				if (slot) {
+					inputElem.parentElement.removeChild(slot);
+				}
+				// 创建翻译容器
+				slot = insertSlot(sid, id, inputElem.parentElement);
+				onRenderTranslationSlot(slot, translation, inputElem, i);
+			}
+			// 如果当前slot不是指定的slotId
+			else {
+				let slot = inputElem.parentElement.querySelector(`#${id}`)
+				// 并且当前slot不存在, 则预留空的slot作为占位
+				if (!slot) {
+					// 创建翻译容器
+					slot = insertSlot(sid, id, inputElem.parentElement);
+					onRenderTranslationSlot(slot, "---", inputElem, i);
+				}
+			}
+		}
+	}
+	
 
-		// 显示翻译
-		const trans1 = transContainer.querySelector('#trans-1');
-		onLoadTranslationText(trans1, translation, inputElem, i);
+	function insertSlot(sid, id, parent) {
+		const slot = document.createElement('div');
+		slot.id = id;
+		slot.innerHTML = html;
+
+		// 调整位置, 确保顺序
+		const nextSibling = parent.querySelector(`#translation-slot-${sid+1}`);
+		if (nextSibling)
+			parent.insertBefore(slot, nextSibling);
+		else
+			parent.appendChild(slot);
+
+		return slot;
 	}
 
 	// 一条字幕翻译
-	function onLoadTranslationText(transElem, text, inputElem, i) {
-		transElem.innerHTML = text;
-		transElem.addEventListener('click', () => onClickTransBtn(text, inputElem));
-		const icon = transElem.parentElement.querySelector('#icon')
+	function onRenderTranslationSlot(slot, text, inputElem, i) {
+		// 翻译的字幕
+		const transCaptionBtn = slot.querySelector('#translated-caption-btn');
+		transCaptionBtn.innerHTML = text;
+		transCaptionBtn.addEventListener('click', () => onClickTransBtn(text, inputElem));
+
+		// 左侧猫图标
+		const icon = slot.querySelector('#icon')
 		icon.src = mainIconUrl; // 猫图标
 		icon.addEventListener('click', () => onClickTransIconBtn(i));
 	}
 	
-	const usage = request.usage;
 	if (usage)
 		tab_showNotification({ message: `翻译完毕! ${lineError} Tokens: 输入=${usage.prompt_tokens}, 输出=${usage.completion_tokens}, 全部=${usage.total_tokens}` });
 	else

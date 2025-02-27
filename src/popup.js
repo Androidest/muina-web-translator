@@ -12,10 +12,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 	// register event listener
 	document.getElementById(storage.prompt).addEventListener('change', onChangePrompt);
 	document.getElementById(storage.apiKey).addEventListener('change', onChangeApiKey);
-	document.getElementById('getAllCaptionBtn').addEventListener('click', onGetAllCaption);
-	document.getElementById('getAllCaptionBtn_format').addEventListener('click', onGetAllCaptionBtn_format);
-	document.getElementById('translateCaptionBtn').addEventListener('click', onTranslateCaptionBtn);
-	document.getElementById('recoverLastTranslationBtn').addEventListener('click', onRecoverLastTranslation);
+	document.getElementById('getAllCaptionBtn').addEventListener('click', onClickGetAllCaptionBtn);
+	document.getElementById('getAllCaptionBtn_format').addEventListener('click', onClickGetAllCaptionBtn_format);
+	document.getElementById('translateCaptionBtn').addEventListener('click', onClickTranslateCaptionBtn);
+	document.getElementById('recoverLastTranslationBtn').addEventListener('click', onClickRecoverLastTranslationBtn);
+	document.getElementById('getPromptBtn').addEventListener('click', onClickGetPromptBtn);
+	document.getElementById('setResultBtn1').addEventListener('click', ()=>onClickSetResultBtn(0));
+	document.getElementById('setResultBtn2').addEventListener('click', ()=>onClickSetResultBtn(1));
+	document.getElementById('setResultBtn3').addEventListener('click', ()=>onClickSetResultBtn(2));
 });
 
 // ============================ events ====================================
@@ -29,7 +33,7 @@ async function onChangeApiKey() {
 	storage.set(storage.apiKey, value);
 }
 
-async function onGetAllCaption() {
+async function onClickGetAllCaptionBtn() {
 	const response = await apiRequest('tab_getAllCaption');
 	if (!response || !response.captions)
 		return;
@@ -56,7 +60,7 @@ async function onGetAllCaption() {
 	apiRequest('tab_showNotification', { message: "字幕已复制到剪贴板" });
 }
 
-async function onGetAllCaptionBtn_format(showNotification = true) {
+async function onClickGetAllCaptionBtn_format(showNotification = true) {
 	const response = await apiRequest('tab_getAllCaption');
 	if (!response || !response.captions)
 		return;
@@ -116,7 +120,7 @@ async function onGetAllCaptionBtn_format(showNotification = true) {
 	return { response, textToCopy };
 }
 
-async function onTranslateCaptionBtn() {
+async function onClickTranslateCaptionBtn() {
 	const apiKey = document.getElementById(storage.apiKey).value;
 	if (!apiKey || apiKey === '') {
 		apiRequest('tab_showNotification', { message: "API key不能为空！" });
@@ -130,8 +134,8 @@ async function onTranslateCaptionBtn() {
 	btn.style.backgroundColor = "rgb(175, 76, 76)";
 
 	// （插件弹窗 -> 目标tab.content）请求网页上的所有字幕
-	const result = await onGetAllCaptionBtn_format(false);
-	const { response: tab_response, textToCopy: prompt } = result;
+	const result = await onClickGetAllCaptionBtn_format(false);
+	const { response: tab_response } = result;
 	if (!tab_response || !tab_response.captions)
 		return;
 
@@ -146,13 +150,40 @@ async function onTranslateCaptionBtn() {
 	btn.style.backgroundColor = btnColor;
 }
 
-async function onRecoverLastTranslation() {
+async function onClickRecoverLastTranslationBtn() {
 	const last_translation = await storage.get(storage.last_translation);
 	if (!last_translation || last_translation === '') {
 		apiRequest('tab_showNotification', { message: "没有上一次翻译的内容" });
 		return;
 	}
 	apiRequest('tab_showTranslation', { translation:last_translation, usage:null });
+}
+
+async function onClickGetPromptBtn() {
+	// （插件弹窗 -> 目标tab.content）请求网页上的所有字幕
+	const result = await onClickGetAllCaptionBtn_format(false);
+	const { response: tab_response } = result;
+	if (!tab_response || !tab_response.captions)
+		return;
+
+	// （插件弹窗 -> 插件后台background）把字幕发给后台请求生成Prompt
+	const { captions, terms } = tab_response;
+	const { prompt } = await apiRequest('bg_getPromt', { captions, terms });
+
+	// 复制Prompt到剪贴板
+	copyToClipboard(prompt);
+	apiRequest('tab_showNotification', { message: "Prompt已复制到粘贴板" });
+}
+
+async function onClickSetResultBtn(slodId) {
+	// 从剪贴板读取结果
+	const result_json = await navigator.clipboard.readText()
+	apiRequest('tab_showTranslation', { 
+		translation: result_json, 
+		usage: null, 
+		startIndex: 0, 
+		slotId: slodId
+	});
 }
 
 // ============================ helper ====================================

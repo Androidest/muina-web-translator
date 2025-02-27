@@ -85,6 +85,10 @@ author {
     user-select: none;
 }
 
+.button2 {
+    background-color: rgb(205, 125, 153);
+}
+
 .button:focus {
     outline: none;
 }

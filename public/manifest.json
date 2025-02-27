@@ -20,7 +20,8 @@
   },
   "permissions": [
     "storage",
-    "activeTab"
+    "activeTab",
+    "clipboardRead"
   ],
   "content_scripts": [
     {
@@ -35,7 +36,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["notification.html", "translation.html", "icons/icon_128.png"],
+      "resources": ["notification.html", "translated-caption-slot.html", "icons/icon_128.png"],
       "matches": ["<all_urls>"]
     }
   ]
